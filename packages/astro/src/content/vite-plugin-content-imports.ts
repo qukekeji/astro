@@ -62,6 +62,10 @@ export function astroContentImportPlugin({
 		}
 	}
 
+	// Have Vite treat content modules as `.js` modules.
+	// Hack to avoid aggressive `.json` file transform.
+	const CONTENT_MODULE_JS_MASK = `.js?${CONTENT_FLAG}=true`;
+
 	const plugins: Plugin[] = [
 		{
 			name: 'astro:content-imports',
