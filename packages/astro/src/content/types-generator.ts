@@ -166,8 +166,9 @@ export async function createContentTypesGenerator({
 				error: new UnsupportedFileTypeError(id),
 			};
 		}
-		const params = { entry: event.entry, contentDir: contentPaths.contentDir };
-		const collection = getEntryCollectionName(params);
+		const { entry } = event;
+		const { contentDir } = contentPaths;
+		const collection = getEntryCollectionName({ entry, contentDir });
 		if (collection === undefined) {
 			if (['info', 'warn'].includes(logLevel)) {
 				warn(
@@ -183,7 +184,7 @@ export async function createContentTypesGenerator({
 			return { shouldGenerateTypes: false };
 		}
 
-		const { id, slug } = getContentEntryIdAndSlug(Object.assign(params, { collection }));
+		const { id, slug } = getContentEntryIdAndSlug({ entry, contentDir, collection });
 
 		const collectionKey = JSON.stringify(collection);
 		const entryKey = JSON.stringify(id);
