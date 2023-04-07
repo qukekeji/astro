@@ -126,26 +126,32 @@ export function getContentEntryExts(settings: Pick<AstroSettings, 'contentEntryT
 	return settings.contentEntryTypes.map((t) => t.extensions).flat();
 }
 
-export class NoCollectionError extends Error {}
+export function getEntryCollectionName({
+	contentDir,
+	entry,
+}: Pick<ContentPaths, 'contentDir'> & { entry: URL }) {
+	const rawRelativePath = path.relative(fileURLToPath(contentDir), fileURLToPath(entry));
+	const collectionName = path.dirname(rawRelativePath).split(path.sep).shift() ?? '';
+	const isOutsideCollection =
+		collectionName === '' || collectionName === '..' || collectionName === '.';
 
-export function getEntryInfo(
-	params: Pick<ContentPaths, 'contentDir'> & { entry: URL; allowFilesOutsideCollection?: true }
-): EntryInfo;
-export function getEntryInfo({
+	if (isOutsideCollection) {
+		return undefined;
+	}
+
+	return collectionName;
+}
+
+export function getContentEntryIdAndSlug({
 	entry,
 	contentDir,
-	allowFilesOutsideCollection = false,
-}: Pick<ContentPaths, 'contentDir'> & { entry: URL; allowFilesOutsideCollection?: boolean }):
-	| EntryInfo
-	| NoCollectionError {
+	collection,
+}: Pick<ContentPaths, 'contentDir'> & { entry: URL; collection: string }): Pick<
+	EntryInfo,
+	'id' | 'slug'
+> {
 	const rawRelativePath = path.relative(fileURLToPath(contentDir), fileURLToPath(entry));
-	const rawCollection = path.dirname(rawRelativePath).split(path.sep).shift();
-	const isOutsideCollection = rawCollection === '..' || rawCollection === '.';
-
-	if (!rawCollection || (!allowFilesOutsideCollection && isOutsideCollection))
-		return new NoCollectionError();
-
-	const rawId = path.relative(rawCollection, rawRelativePath);
+	const rawId = path.relative(collection, rawRelativePath);
 	const rawIdWithoutFileExt = rawId.replace(new RegExp(path.extname(rawId) + '$'), '');
 	const rawSlugSegments = rawIdWithoutFileExt.split(path.sep);
 
@@ -159,7 +165,6 @@ export function getEntryInfo({
 	const res = {
 		id: normalizePath(rawId),
 		slug,
-		collection: normalizePath(rawCollection),
 	};
 	return res;
 }

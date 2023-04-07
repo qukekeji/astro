@@ -13,12 +13,12 @@ import {
 	getContentEntryExts,
 	getContentPaths,
 	getEntryData,
-	getEntryInfo,
+	getContentEntryIdAndSlug,
 	getEntrySlug,
 	getEntryType,
 	globalContentConfigObserver,
-	NoCollectionError,
 	type ContentConfig,
+	getEntryCollectionName,
 } from './utils.js';
 
 function isContentFlagImport(viteId: string) {
@@ -218,13 +218,13 @@ export function astroContentImportPlugin({
 			fileUrl: pathToFileURL(fileId),
 			contents: rawContents,
 		});
-		const entryInfoResult = getEntryInfo({
-			entry: pathToFileURL(fileId),
-			contentDir: contentPaths.contentDir,
-		});
-		if (entryInfoResult instanceof NoCollectionError) throw entryInfoResult;
+		const entry = pathToFileURL(fileId);
+		const { contentDir } = contentPaths;
+		const collection = getEntryCollectionName({ entry, contentDir });
+		if (collection === undefined)
+			throw new AstroError(AstroErrorData.UnknownContentCollectionError);
 
-		const { id, slug: generatedSlug, collection } = entryInfoResult;
+		const { id, slug: generatedSlug } = getContentEntryIdAndSlug({ entry, contentDir, collection });
 
 		const _internal = { filePath: fileId, rawData: rawData };
 		// TODO: move slug calculation to the start of the build

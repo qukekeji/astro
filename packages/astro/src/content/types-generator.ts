@@ -12,16 +12,16 @@ import { CONTENT_TYPES_FILE } from './consts.js';
 import {
 	getContentEntryExts,
 	getContentPaths,
-	getEntryInfo,
+	getContentEntryIdAndSlug,
 	getEntrySlug,
 	getEntryType,
 	loadContentConfig,
-	NoCollectionError,
 	parseFrontmatter,
 	type ContentConfig,
 	type ContentObservable,
 	type ContentPaths,
 	type EntryInfo,
+	getEntryCollectionName,
 } from './utils.js';
 
 type ChokidarEvent = 'add' | 'addDir' | 'change' | 'unlink' | 'unlinkDir';
@@ -156,22 +156,19 @@ export async function createContentTypesGenerator({
 			if (event.name === 'unlink') {
 				return { shouldGenerateTypes: false };
 			}
-			const entryInfo = getEntryInfo({
+			const { id } = getContentEntryIdAndSlug({
 				entry: event.entry,
 				contentDir: contentPaths.contentDir,
-				// Skip invalid file check. We already know it’s invalid.
-				allowFilesOutsideCollection: true,
+				collection: '',
 			});
 			return {
 				shouldGenerateTypes: false,
-				error: new UnsupportedFileTypeError(entryInfo.id),
+				error: new UnsupportedFileTypeError(id),
 			};
 		}
-		const entryInfo = getEntryInfo({
-			entry: event.entry,
-			contentDir: contentPaths.contentDir,
-		});
-		if (entryInfo instanceof NoCollectionError) {
+		const params = { entry: event.entry, contentDir: contentPaths.contentDir };
+		const collection = getEntryCollectionName(params);
+		if (collection === undefined) {
 			if (['info', 'warn'].includes(logLevel)) {
 				warn(
 					logging,
@@ -186,14 +183,14 @@ export async function createContentTypesGenerator({
 			return { shouldGenerateTypes: false };
 		}
 
-		const { id, collection } = entryInfo;
+		const { id, slug } = getContentEntryIdAndSlug(Object.assign(params, { collection }));
 
 		const collectionKey = JSON.stringify(collection);
 		const entryKey = JSON.stringify(id);
 
 		switch (event.name) {
 			case 'add':
-				const addedSlug = await parseSlug({ fs, event, entryInfo });
+				const addedSlug = await parseSlug({ fs, event, entryInfo: { id, slug, collection } });
 				if (!(collectionKey in contentTypes)) {
 					addCollection(contentTypes, collectionKey);
 				}
@@ -209,7 +206,7 @@ export async function createContentTypesGenerator({
 			case 'change':
 				// User may modify `slug` in their frontmatter.
 				// Only regen types if this change is detected.
-				const changedSlug = await parseSlug({ fs, event, entryInfo });
+				const changedSlug = await parseSlug({ fs, event, entryInfo: { id, slug, collection } });
 				if (contentTypes[collectionKey]?.[entryKey]?.slug !== changedSlug) {
 					setEntry(contentTypes, collectionKey, entryKey, changedSlug);
 					return { shouldGenerateTypes: true };
