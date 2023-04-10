@@ -20,7 +20,6 @@ import {
 	type ContentConfig,
 	type ContentObservable,
 	type ContentPaths,
-	type EntryInfo,
 	getEntryCollectionName,
 	getDataEntryExts,
 	getDataEntryId,
@@ -224,7 +223,7 @@ export async function createContentTypesGenerator({
 
 		switch (event.name) {
 			case 'add':
-				const addedSlug = await parseSlug({ fs, event, entryInfo: { id, slug, collection } });
+				const addedSlug = await parseSlug({ fs, event, id, slug, collection });
 				if (!(collectionKey in collectionTypes)) {
 					addCollection(collectionTypes, collectionKey);
 				}
@@ -240,7 +239,7 @@ export async function createContentTypesGenerator({
 			case 'change':
 				// User may modify `slug` in their frontmatter.
 				// Only regen types if this change is detected.
-				const changedSlug = await parseSlug({ fs, event, entryInfo: { id, slug, collection } });
+				const changedSlug = await parseSlug({ fs, event, id, slug, collection });
 				const entryMetadata = collectionTypes[collectionKey]?.[entryKey];
 				if (entryMetadata?.type === 'content' && entryMetadata?.slug !== changedSlug) {
 					setEntry(collectionTypes, collectionKey, entryKey, {
@@ -336,11 +335,15 @@ function removeCollection(contentMap: CollectionTypes, collectionKey: string) {
 async function parseSlug({
 	fs,
 	event,
-	entryInfo,
+	id,
+	slug,
+	collection,
 }: {
 	fs: typeof fsMod;
 	event: ContentEvent;
-	entryInfo: EntryInfo;
+	id: string;
+	slug: string;
+	collection: string;
 }) {
 	// `slug` may be present in entry frontmatter.
 	// This should be respected by the generated `slug` type!
@@ -349,7 +352,7 @@ async function parseSlug({
 	// on dev server startup or production build init.
 	const rawContents = await fs.promises.readFile(event.entry, 'utf-8');
 	const { data: frontmatter } = parseFrontmatter(rawContents, fileURLToPath(event.entry));
-	return getEntrySlug({ ...entryInfo, unvalidatedSlug: frontmatter.slug });
+	return getEntrySlug({ id, slug, collection, unvalidatedSlug: frontmatter.slug });
 }
 
 function setEntry(
