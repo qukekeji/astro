@@ -6,6 +6,7 @@ import type { AstroSettings } from '../@types/astro.js';
 import { appendForwardSlash, prependForwardSlash } from '../core/path.js';
 import { VIRTUAL_MODULE_ID } from './consts.js';
 import { getContentEntryExts, getContentPaths, getDataEntryExts } from './utils.js';
+import { rootRelativePath } from '../core/util.js';
 
 interface AstroContentVirtualModPluginParams {
 	settings: AstroSettings;
@@ -15,24 +16,22 @@ export function astroContentVirtualModPlugin({
 	settings,
 }: AstroContentVirtualModPluginParams): Plugin {
 	const contentPaths = getContentPaths(settings.config);
-	const relContentDir = normalizePath(
-		appendForwardSlash(
-			prependForwardSlash(
-				path.relative(settings.config.root.pathname, contentPaths.contentDir.pathname)
-			)
-		)
-	);
+	const relContentDir = rootRelativePath(settings.config.root, contentPaths.contentDir);
+	const relDataDir = rootRelativePath(settings.config.root, contentPaths.dataDir);
 	const contentEntryExts = getContentEntryExts(settings);
 	const dataEntryExts = getDataEntryExts(settings);
 
 	const virtualModContents = fsMod
 		.readFileSync(contentPaths.virtualModTemplate, 'utf-8')
 		.replace('@@CONTENT_DIR@@', relContentDir)
+		.replace('@@DATA_DIR@@', relDataDir)
 		.replace('@@CONTENT_ENTRY_GLOB_PATH@@', `${relContentDir}**/*${getExtGlob(contentEntryExts)}`)
-		.replace('@@DATA_ENTRY_GLOB_PATH@@', `${relContentDir}**/*${getExtGlob(dataEntryExts)}`)
+		.replace('@@DATA_ENTRY_GLOB_PATH@@', `${relDataDir}**/*${getExtGlob(dataEntryExts)}`)
 		.replace(
 			'@@RENDER_ENTRY_GLOB_PATH@@',
-			`${relContentDir}**/*${getExtGlob(/** Note: data collections excluded */ contentEntryExts)}`
+			`${relContentDir}**/*${getExtGlob(
+				contentEntryExts /** data collections excluded since they don't have a `render()` function */
+			)}`
 		);
 
 	const astroContentVirtualModuleId = '\0' + VIRTUAL_MODULE_ID;
